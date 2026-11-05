@@ -28,8 +28,9 @@ Config.defaults = {
 	stepHeight = 1.2,
 	castExtra = 3,
 	legThickness = 0.5,
+  launchMaxHeight = 28,
+	flyMaxRange = 80,
 }
-
 
 --! constants
 local ABDOMEN = 2.2

@@ -113,62 +113,68 @@ function State:dealDamage(amount, radius)
 end
 
 function State:think(targetPos, dist)
-	local cfg = self.cfg
-	local state = self.state
+    local cfg = self.cfg
+    local state = self.state
 
-	if state == "Idle" then
-		if targetPos and dist < cfg.senseRange then
-			self:setState("Chase")
-		end
-	elseif state == "Chase" then
-		if targetPos == nil or dist > cfg.loseRange then
-			self:setState("Idle")
-		elseif dist < cfg.biteRange and self.biteCd <= 0 then
-			self.attackVariant = self:pickAttackVariant()
-			self:setState("Bite")
-		elseif
-			self.leapCd <= 0
-			and dist > cfg.leapMinRange
-			and dist < cfg.leapMaxRange
-			and self:lineOfSight(targetPos)
-		then
-			self:setState("Windup")
-		end
-	elseif state == "Bite" then
-		local strikeT = self:strikeTime()
-		local endT = self:variantEndTime()
-		local damage = if self.attackVariant == "maul" then cfg.biteDamage * 0.8 else cfg.biteDamage
-		local radius = if self.attackVariant == "rend" then cfg.biteRange + 2.5 else cfg.biteRange + 1.5
+    if state == "Idle" then
+        if targetPos and dist < cfg.senseRange then
+            self:setState("Chase")
+        end
+    elseif state == "Chase" then
+        if targetPos == nil or dist > cfg.loseRange then
+            self:setState("Idle")
+        elseif dist < cfg.biteRange and self.biteCd <= 0 then
+            self.attackVariant = self:pickAttackVariant()
+            self:setState("Bite")
+        elseif self.leapCd <= 0
+            and dist > cfg.leapMinRange
+            and dist < cfg.leapMaxRange
+            and self:lineOfSight(targetPos) then
+            self:setState("Leap")
+        elseif self:scan(targetPos, dist) then
+            self:setState("Windup")
+        end
+    elseif state == "Bite" then
+        local strikeT = self:strikeTime()
+        local endT = self:variantEndTime()
+        local damage = if self.attackVariant == "maul" then cfg.biteDamage * 0.8 else cfg.biteDamage
+        local radius = if self.attackVariant == "rend" then cfg.biteRange + 2.5 else cfg.biteRange + 1.5
 
-		if not self.hitDone and self.stateTime >= strikeT then
-			self.hitDone = true
-			self:dealDamage(damage, radius)
-		end
-		if self.attackVariant == "maul" and not self.secondHitDone and self.stateTime >= C.MAUL_SECOND_STRIKE then
-			self.secondHitDone = true
-			self:dealDamage(damage, radius)
-		end
-		if self.stateTime >= endT then
-			self.biteCd = cfg.biteCooldown
-			self:setState("Chase")
-		end
-	elseif state == "Windup" then
-		if targetPos == nil then
-			self:setState("Chase")
-		elseif self.stateTime >= C.WINDUP_TIME then
-			self:launch(targetPos)
-			self.leapCd = cfg.leapCooldown
-			self:setState("Leap")
-		end
-	elseif state == "Recover" then
-		if self.stateTime >= C.RECOVER_TIME then
-			self:setState("Chase")
-		end
-	elseif state == "Dead" then
-		if self.stateTime >= C.DEATH_TIME then
-			self:destroy()
-		end
-	end
+        if not self.hitDone and self.stateTime >= strikeT then
+            self.hitDone = true
+            self:dealDamage(damage, radius)
+        end
+        if self.attackVariant == "maul" and not self.secondHitDone and self.stateTime >= C.MAUL_SECOND_STRIKE then
+            self.secondHitDone = true
+            self:dealDamage(damage, radius)
+        end
+        if self.stateTime >= endT then
+            self.biteCd = cfg.biteCooldown
+            self:setState("Chase")
+        end
+    elseif state == "Windup" then
+        if targetPos == nil then
+            self:setState("Chase")
+        elseif self.stateTime >= C.WINDUP_TIME then
+            local plan = self:planLeap(targetPos, dist)
+            if plan then
+                self:launch(plan)
+                self.leapCd = cfg.leapCooldown
+                self:setState("Leap")
+            else
+                self.leapCd = 0.5
+                self:setState("Chase")
+            end
+        end
+    elseif state == "Recover" then
+        if self.stateTime >= C.RECOVER_TIME then
+            self:setState("Chase")
+        end
+    elseif state == "Dead" then
+        if self.stateTime >= C.DEATH_TIME then
+            self:destroy()
+        end
+    end
 end
 
 return State

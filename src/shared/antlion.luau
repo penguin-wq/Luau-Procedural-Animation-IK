@@ -28,6 +28,8 @@ local ATTRIBUTES = {
 	"leapMaxRange",
 	"leapSpeed",
 	"leapHitRadius",
+  "launchMaxHeight",
+  "flyMaxRange",
 }
 
 for _, module in {
@@ -35,7 +37,8 @@ for _, module in {
 	require(Modules.rig.bodies),
 	require(Modules.rig.joints),
 	require(Modules.animation),
-	require(Modules.motion),
+	require(Modules.navigation),
+  require(Modules.motion),
 } do
 	for key, fn in module do
 		Antlion[key] = fn
@@ -61,6 +64,16 @@ function Antlion.new(spawn, config, parent)
   self.falling = false
   self.fallingSpeed = 0
   self.airTime = 0
+
+	self.leapGravity = 0
+	self.leapTime = 0
+	self.leapKind = "ground"
+	self.scanAt = 0
+	self.usePath = false
+	self.waypoints = nil
+	self.waypointIndex = 1
+	self.pathAt = 0
+	self.pathBusy = false
 
 	for _, key in ATTRIBUTES do
 		self.model:SetAttribute(key, cfg[key])
