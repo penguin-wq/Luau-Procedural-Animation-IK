@@ -1,7 +1,8 @@
-local shared = game:GetService("ReplicatedStorage").Shared
-local modules = shared.inverse-kinematics
-local cfg = require(modules.helpers.config)
-local util = require(modules.helpers.util)
+local Shared = game:GetService("ReplicatedStorage").Shared
+local Modules = Shared.modules
+
+local C = require(Modules.helpers.config)
+local util = require(Modules.helpers.util)
 
 local sin = math.sin
 local pi = math.pi
@@ -29,7 +30,7 @@ function Animation:animate(dt, targetPos)
 	end
 	local variant = self.attackVariant
 	local maul = state == "Bite" and variant == "maul"
-	local coil = maul and self.stateTime < cfg.MAUL_POUNCE_START
+	local coil = maul and self.stateTime < C.MAUL_POUNCE_START
 	local air = maul and not strike and not coil
 
 	self.breathPhase += dt * (2 + sf * 5)
@@ -294,8 +295,8 @@ function Animation:animate(dt, targetPos)
 
 	local hopGoal = 0
 	if air then
-		local t = (self.stateTime - cfg.MAUL_POUNCE_START) / (cfg.MAUL_STRIKE - cfg.MAUL_POUNCE_START)
-		hopGoal = sin(t * pi) * cfg.MAUL_HOP_HEIGHT
+		local t = (self.stateTime - C.MAUL_POUNCE_START) / (C.MAUL_STRIKE - C.MAUL_POUNCE_START)
+		hopGoal = sin(t * pi) * C.MAUL_HOP_HEIGHT
 	end
 	self.hop += (hopGoal - self.hop) * (1 - math.exp(-30 * dt))
 

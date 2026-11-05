@@ -31,7 +31,7 @@ Config.defaults = {
 }
 
 
--- constants
+--! constants
 local ABDOMEN = 2.2
 
 Config.HEAD_LENGTH = 1.7

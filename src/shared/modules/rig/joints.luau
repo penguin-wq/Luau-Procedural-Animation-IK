@@ -1,7 +1,9 @@
 local Workspace = game:GetService("Workspace")
-local shared = game:GetService("ReplicatedStorage").Shared
-local modules = shared.inverse-kinematics
-local cfg = require(modules.helpers.config)
+
+local Shared = game:GetService("ReplicatedStorage").Shared
+local Modules = Shared.modules
+
+local C = require(Modules.helpers.config)
 
 local Joints = {}
 
@@ -113,7 +115,7 @@ function Joints:updateJoints(dt, moving)
 	local pouncing = self:pouncing()
 
 	for i, leg in self.legs do
-		if state == "Leap" then
+		if state == "Leap" or self.falling then
 			leg.stepping = false
 			leg.lift = 0
 			leg.foot = leg.foot:Lerp(pose:PointToWorldSpace(leg.hipLocal + leg.airLocal), blend)
@@ -146,7 +148,7 @@ function Joints:updateJoints(dt, moving)
 			if variant == "rend" then
 				local swipe = if biteStrike then math.sin(bitePost * math.pi) * 2.5 * leg.side else 0
 				reachedWorld = base:PointToWorldSpace(leg.hipLocal + Vector3.new(leg.side * 0.5 + swipe, 1.6, -3.5))
-			elseif self.stateTime < cfg.MAUL_POUNCE_START then
+			elseif self.stateTime < C.MAUL_POUNCE_START then
 				reachedWorld = base:PointToWorldSpace(leg.hipLocal + Vector3.new(leg.side * 0.9, 1.6, -1.8))
 			elseif not biteStrike then
 				reachedWorld = base:PointToWorldSpace(leg.hipLocal + Vector3.new(leg.side * 1.5, 1.4, -4.6))
@@ -185,7 +187,7 @@ end
 
 function Joints:fitBody(dt)
 	local cfg = self.cfg
-	if self.state == "Leap" or self.state == "Dead" then
+	if self.state == "Leap" or self.state == "Dead" or self.falling then
 		return
 	end
 

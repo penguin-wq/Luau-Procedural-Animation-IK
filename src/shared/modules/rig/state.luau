@@ -1,12 +1,15 @@
 local Workspace = game:GetService("Workspace")
-local shared = game:GetService("ReplicatedStorage").Shared
-local modules = shared.inverse-kinematics
-local cfg = require(modules.helpers.config)
+
+local Shared = game:GetService("ReplicatedStorage").Shared
+local Modules = Shared.modules
+
+local C = require(Modules.helpers.config)
 
 local State = {}
 
 function State:setState(nextState)
 	self.state = nextState
+  self.model:SetAttribute("State", nextState)
 	self.stateTime = 0
 	self.hitDone = false
 	self.secondHitDone = false
@@ -16,8 +19,8 @@ end
 function State:pouncing()
 	return self.state == "Bite"
 		and self.attackVariant == "maul"
-		and self.stateTime >= cfg.MAUL_POUNCE_START
-		and self.stateTime < cfg.MAUL_STRIKE
+		and self.stateTime >= C.MAUL_POUNCE_START
+		and self.stateTime < C.MAUL_STRIKE
 end
 
 function State:pickAttackVariant()
@@ -33,22 +36,22 @@ end
 
 function State:strikeTime()
 	if self.attackVariant == "rend" then
-		return cfgg.REND_STRIKE
+		return C.REND_STRIKE
 	end
 	if self.attackVariant == "maul" then
-		return cfg.MAUL_STRIKE
+		return C.MAUL_STRIKE
 	end
-	return cfg.BITE_STRIKE
+	return C.BITE_STRIKE
 end
 
 function State:variantEndTime()
 	if self.attackVariant == "rend" then
-		return cfg.REND_TIME
+		return C.REND_TIME
 	end
 	if self.attackVariant == "maul" then
-		return cfg.MAUL_TIME
+		return C.MAUL_TIME
 	end
-	return cfg.BITE_TIME
+	return C.BITE_TIME
 end
 
 function State:resolveTarget()

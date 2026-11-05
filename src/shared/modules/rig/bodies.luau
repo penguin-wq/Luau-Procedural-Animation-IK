@@ -1,7 +1,8 @@
-local shared = game:GetService("ReplicatedStorage").Shared
-local modules = shared.inverse-kinematics
-local cfg = require(modules.helpers.config)
-local util = require(modules.helpers.util)
+local Shared = game:GetService("ReplicatedStorage").Shared
+local Modules = Shared.modules
+
+local C = require(Modules.helpers.config)
+local util = require(Modules.helpers.util)
 
 local Bodies = {}
 
@@ -23,21 +24,36 @@ end
 
 function Bodies:buildBodies()
 	local cfg = self.cfg
-
+  
+  -- body part colors
 	local shell = Color3.fromRGB(139, 96, 48)
 	local dark = Color3.fromRGB(84, 58, 30)
 	local belly = Color3.fromRGB(176, 128, 66)
 	local bone = Color3.fromRGB(222, 198, 148)
 	local membrane = Color3.fromRGB(214, 172, 92)
+  
+  -- body scales
+	self.thorax = self:makePart(
+    "Thorax",
+    Vector3.new(cfg.bodyWidth, 1.3, cfg.bodyLength), shell)
 
-	self.thorax = self:makePart("Thorax", Vector3.new(cfg.bodyWidth, 1.3, cfg.bodyLength), shell)
-	self.head = self:makePart("Head", Vector3.new(1.5, 1.1, C.HEAD_LENGTH), shell)
-	self.abdomen = self:makePart("Abdomen", C.ABDOMEN_SIZE, belly)
+	self.head = self:makePart(
+    "Head", Vector3.new(1.5, 1.1, C.HEAD_LENGTH), shell)
+
+	self.abdomen = self:makePart(
+    "Abdomen", C.ABDOMEN_SIZE, belly)
+
 	self.model.PrimaryPart = self.thorax
 
 	for _, name in { "L", "R" } do
-		table.insert(self.jawBase, self:makePart("Jaw" .. name .. "Base", Vector3.new(0.3, 0.3, C.JAW_BASE), bone))
-		table.insert(self.jawTip, self:makePart("Jaw" .. name .. "Tip", Vector3.new(0.22, 0.22, C.JAW_TIP), bone))
+		table.insert(self.jawBase, self:makePart(
+      "Jaw" .. name .. "Base", 
+      Vector3.new(0.3, 0.3, C.JAW_BASE), bone))
+		
+    table.insert(self.jawTip, self:makePart(
+      "Jaw" .. name .. "Tip",
+      Vector3.new(0.22, 0.22, C.JAW_TIP), bone))
+
 		table.insert(
 			self.wings,
 			self:makePart(
@@ -46,8 +62,7 @@ function Bodies:buildBodies()
 				membrane,
 				Enum.PartType.Block,
 				0.4
-			)
-		)
+			))
 	end
 
 	for side = 0, 1 do
@@ -58,7 +73,8 @@ function Bodies:buildBodies()
 			local outward = Vector3.new(s, 0, r * 0.6).Unit
 			local restLocal = hipLocal + outward * cfg.reach - Vector3.new(0, cfg.rideHeight, 0)
 			local index = #self.legs
-			table.insert(self.legs, {
+			
+      table.insert(self.legs, {
 				row = r,
 				side = s,
 				group = (row + side) % 2,
@@ -74,12 +90,14 @@ function Bodies:buildBodies()
 				lift = 0,
 				drift = 0,
 				arm = false,
-				upper = self:makePart(
+				
+        upper = self:makePart(
 					"Leg" .. index .. "Upper",
 					Vector3.new(cfg.legThickness, cfg.legThickness, cfg.upperLength),
 					dark
 				),
-				lower = self:makePart(
+				
+        lower = self:makePart(
 					"Leg" .. index .. "Lower",
 					Vector3.new(cfg.legThickness * 0.75, cfg.legThickness * 0.75, cfg.lowerLength),
 					dark
@@ -119,17 +137,26 @@ function Bodies:render()
 		local hinge = neck
 			* CFrame.new(s * 0.45, -0.15, -C.HEAD_LENGTH)
 			* CFrame.Angles(0, -s * (sp.jaw.x * 0.9 - 0.1), 0)
-		self.jawBase[i + 1].CFrame = hinge * CFrame.new(0, 0, -C.JAW_BASE * 0.5)
-		local hook = hinge * CFrame.new(0, 0, -C.JAW_BASE) * CFrame.Angles(0, s * 0.45, 0)
-		self.jawTip[i + 1].CFrame = hook * CFrame.new(0, 0, -C.JAW_TIP * 0.5)
+		
+    self.jawBase[i + 1].CFrame = 
+      hinge * CFrame.new(0, 0, -C.JAW_BASE * 0.5)
+		
+    local hook = 
+      hinge * CFrame.new(0, 0, -C.JAW_BASE) * CFrame.Angles(0, s * 0.45, 0)	
+    self.jawTip[i + 1].CFrame = 
+      hook * CFrame.new(0, 0, -C.JAW_TIP * 0.5)
 
 		local idleJitter = math.sin(self.clock * 45 + i) * 0.015
 		local flutterScale = if airborne then 0.3 else 1
-		local baseFlutter = math.sin(self.clock * 70) * 0.08 * math.max(sp.wing.x - 0.2, 0) * flutterScale
+		
+    local baseFlutter = math.sin(self.clock 
+      * 70) * 0.08 * math.max(sp.wing.x - 0.2, 0) * flutterScale
 
 		local leapFlap = 0
 		if airborne then
-			leapFlap = math.sin(self.clock * 280 + i * 0.8) * 0.45 + math.sin(self.clock * 180 + i * 1.7) * 0.12
+			leapFlap = math.sin(self.clock 
+      * 280 + i 
+      * 0.8) * 0.45 + math.sin(self.clock * 180 + i * 1.7) * 0.12
 		end
 
 		local flutter = baseFlutter + idleJitter + leapFlap
@@ -153,3 +180,4 @@ function Bodies:render()
 end
 
 return Bodies
+
