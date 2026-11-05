@@ -1,11 +1,14 @@
 {
-  "name": "Roblox-IK",
+  "name": "LuauInverseKinematics",
   "tree": {
     "$className": "DataModel",
 
     "ReplicatedStorage": {
       "Shared": {
         "$path": "src/shared"
+      },
+      "Packages": {
+        "$path": "Packages"
       }
     },
 
