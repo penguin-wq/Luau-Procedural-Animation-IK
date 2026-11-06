@@ -1,9 +1,5 @@
 local Workspace = game:GetService("Workspace")
-
-local Shared = game:GetService("ReplicatedStorage").Shared
-local Modules = Shared.modules
-
-local C = require(Modules.helpers.config)
+local config = require("../helpers/config")
 
 local State = {}
 
@@ -19,8 +15,8 @@ end
 function State:pouncing()
 	return self.state == "Bite"
 		and self.attackVariant == "maul"
-		and self.stateTime >= C.MAUL_POUNCE_START
-		and self.stateTime < C.MAUL_STRIKE
+		and self.stateTime >= config.MAUL_POUNCE_START
+		and self.stateTime < config.MAUL_STRIKE
 end
 
 function State:pickAttackVariant()
@@ -36,22 +32,22 @@ end
 
 function State:strikeTime()
 	if self.attackVariant == "rend" then
-		return C.REND_STRIKE
+		return config.REND_STRIKE
 	end
 	if self.attackVariant == "maul" then
-		return C.MAUL_STRIKE
+		return config.MAUL_STRIKE
 	end
-	return C.BITE_STRIKE
+	return config.BITE_STRIKE
 end
 
 function State:variantEndTime()
 	if self.attackVariant == "rend" then
-		return C.REND_TIME
+		return config.REND_TIME
 	end
 	if self.attackVariant == "maul" then
-		return C.MAUL_TIME
+		return config.MAUL_TIME
 	end
-	return C.BITE_TIME
+	return config.BITE_TIME
 end
 
 function State:resolveTarget()
@@ -144,7 +140,7 @@ function State:think(targetPos, dist)
             self.hitDone = true
             self:dealDamage(damage, radius)
         end
-        if self.attackVariant == "maul" and not self.secondHitDone and self.stateTime >= C.MAUL_SECOND_STRIKE then
+        if self.attackVariant == "maul" and not self.secondHitDone and self.stateTime >= config.MAUL_SECOND_STRIKE then
             self.secondHitDone = true
             self:dealDamage(damage, radius)
         end
@@ -155,7 +151,7 @@ function State:think(targetPos, dist)
     elseif state == "Windup" then
         if targetPos == nil then
             self:setState("Chase")
-        elseif self.stateTime >= C.WINDUP_TIME then
+        elseif self.stateTime >= config.WINDUP_TIME then
             local plan = self:planLeap(targetPos, dist)
             if plan then
                 self:launch(plan)
@@ -167,11 +163,11 @@ function State:think(targetPos, dist)
             end
         end
     elseif state == "Recover" then
-        if self.stateTime >= C.RECOVER_TIME then
+        if self.stateTime >= config.RECOVER_TIME then
             self:setState("Chase")
         end
     elseif state == "Dead" then
-        if self.stateTime >= C.DEATH_TIME then
+        if self.stateTime >= config.DEATH_TIME then
             self:destroy()
         end
     end

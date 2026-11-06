@@ -1,25 +1,27 @@
 local Workspace = game:GetService("Workspace")
 local PathfindingService = game:GetService("PathfindingService")
+local config = require("./helpers/config")
 
-local Shared = game:GetService("ReplicatedStorage").Shared
-local Modules = Shared.modules
-
-local C = require(Modules.helpers.config)
+local Nav = {}
 
 local SCAN_INTERVAL = 0.3 -- seconds between planner refreshes
 local TARGET_PROBE = 5 -- how far below the target to look for the surface it stands on
+
 local OBSTACLE_MEDIUM = 4 -- rise (studs) at which the target's surface counts as an obstacle
 local OBSTACLE_RANGE = 24 -- max flat distance for an obstacle launch
 local OBSTACLE_CLEARANCES = { 3, 6, 9, 12 } -- apex heights above the perch, lowest tried first
 local OBSTACLE_GRAVITY_SCALE = 1.4
+
 local FLY_ARC = 0.22 -- arc rise per stud of distance
 local FLY_MIN_ARC = 4
 local FLY_LEAD = 0.8 -- share of the target's motion to lead
 local FLY_GRAVITY_MIN = 0.3 -- gravity scale limits for the glide
 local FLY_GRAVITY_MAX = 2
+
 local ARC_SAMPLES = 8
 local PATH_INTERVAL = 1 -- seconds between route requests
 local WAYPOINT_REACH = 3 -- planar distance that counts as reaching a waypoint
+
 local PATH_AGENT = {
 	AgentRadius = 3.5,
 	AgentHeight = 5,
@@ -27,8 +29,6 @@ local PATH_AGENT = {
 	AgentCanClimb = false,
 	WaypointSpacing = 6,
 }
-
-local Nav = {}
 
 -- Launch velocity and flight time for a leap that peaks `apex` studs above `from`, then drops onto `aim`.
 local function apexLaunch(from, aim, gravity, apex)
@@ -80,8 +80,8 @@ end
 
 -- Short-range leap: fast, fixed-time hop straight at the target.
 function Nav:solveGround(targetPos)
-	local time = C.LEAP_FLIGHT_TIME
-	local gravity = Workspace.Gravity * C.LEAP_GRAVITY_SCALE
+	local time = config.LEAP_FLIGHT_TIME
+	local gravity = Workspace.Gravity * config.LEAP_GRAVITY_SCALE
 	local delta = targetPos - self.position
 	local flat = Vector3.new(delta.X, 0, delta.Z)
 	local dir = if flat.Magnitude > 0.01 then flat.Unit else self.forward

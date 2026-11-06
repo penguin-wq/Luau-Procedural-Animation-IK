@@ -1,46 +1,95 @@
-local Workspace = game:GetService("Workspace")
-
-local Shared = game:GetService("ReplicatedStorage").Shared
-local Modules = Shared.modules
-
-local C = require(Modules.helpers.config)
+local config = require("./helpers/config")
 
 local Motion = {}
 
-local function settle(v, target, eps)
-  if math.abs(v - target) < eps and math.abs(velocity) < eps then
-    return target, 0
+--[[
+    Snaps `up` back to exactly Vector3.yAxis when it is already within
+    ~0.8 degrees of vertical. Prevents the asymptotic Lerp from leaving
+    `up` permanently a hair off-axis, which tilts every ground probe and
+    causes the Idle body bob.
+]]
+local function snap_up(up: Vector3): (Vector3)
+  if up.Y > 0.9999 then
+    return Vector3.yAxis
   end
-  return v, velocity
+  return up
 end
 
-function Motion:refreshPose()
-	self.base = CFrame.lookAt(self.position, self.position + self.forward, self.up)
-	self.pose = self.base * CFrame.Angles(self.sp.pitch.x, 0, self.sp.roll.x)
+--[[
+    Returns ground normal snapped to yAxis when nearly vertical.
+]]
+local function ground_up(normal: Vector3): (Vector3)
+  if normal.Y > 0.9999 then
+    return Vector3.yAxis
+  end
+  return normal
 end
 
-function Motion:launch(plan)
-  self.velocity = plan.velocity
-  self.leapGravity = plan.gravity
-  self.leapTime = plan.time
-  self.leapKind = plan.kind
+--[[
+    Rebuilds self.base (world CFrame from position/forward/up) and
+    self.pose (base plus pitch/roll tilt).
+]]
+function Motion:refreshPose(): ()
+	self.base = CFrame.lookAt(
+    self.position,
+    self.position + self.forward,
+    self.up)
+	self.pose = self.base * CFrame.Angles(
+    self.sp.pitch.x,0,
+    self.sp.roll.x)
 end
 
-function Motion:steer(dt, targetPos, planar)
+--[[
+    Stores the active leap plan on the instance.
+    @param plan { velocity: Vector3, gravity: number, time: number, kind: string }
+]]
+function Motion:launch(plan: {
+	velocity: Vector3,
+	gravity: number,
+	time: number,
+	kind: string,
+}): ()
+	self.velocity = plan.velocity
+	self.leapGravity = plan.gravity
+	self.leapTime = plan.time
+	self.leapKind = plan.kind
+end
+
+--[[
+    Turns toward the target and advances position by ground speed.
+    Also applies the Maul pounce slide during the Bite state.
+    @param dt number
+    @param targetPos Vector3?
+    @param planar Vector3  -- flat (XZ) offset to target
+    @return boolean moving  -- true if the body translated this frame
+]]
+function Motion:steer(
+  dt: number,
+  targetPos: Vector3?,
+  planar: Vector3
+): (boolean)
 	local cfg = self.cfg
 	local state = self.state
 	local facing = state == "Chase" or state == "Windup" or state == "Bite"
 	local moving = false
-  local turn = 0
+	local turn = 0
 
-  if facing and targetPos and planar.Magnitude > 0.05 then
-		local route = if state == "Chase" then self:routeVector() else nil
+	if facing and targetPos and planar.Magnitude > 0.05 then
+		local route = if state == "Chase" then 
+      self:routeVector() else nil
+		
     local desired = (route or planar).Unit
-		local angle = math.atan2(self.up:Dot(self.forward:Cross(desired)), self.forward:Dot(desired))
-		local rate = (if state == "Chase" then 1 else 1.6) * cfg.turnSpeed * dt
-		turn = math.clamp(angle, -rate, rate)
-		self.forward = CFrame.fromAxisAngle(self.up, turn):VectorToWorldSpace(self.forward)
-		moving = state == "Chase"
+		local angle = math.atan2(
+      self.up:Dot(self.forward:Cross(desired)),
+      self.forward:Dot(desired))
+		
+    local rate = (if state == "Chase" then 1 else 1.6) * cfg.turnSpeed * dt
+    turn = math.clamp(angle, -rate, rate)
+		
+    self.forward = 
+      CFrame.fromAxisAngle(self.up, turn):VectorToWorldSpace(self.forward)
+		
+    moving = state == "Chase"
 			and not self.falling
 			and planar.Magnitude > cfg.stopDistance
 			and math.abs(angle - turn) < math.rad(70)
@@ -63,9 +112,11 @@ function Motion:steer(dt, targetPos, planar)
 	end
 
 	if self:pouncing() and targetPos then
-		local gap = planar:Dot(self.forward) - C.MAUL_POUNCE_GAP
+		local gap = planar:Dot(self.forward) - config.MAUL_POUNCE_GAP
 		if gap > 0 then
-			local pounceSpeed = math.min(gap / math.max(C.MAUL_STRIKE - self.stateTime, dt), C.MAUL_POUNCE_SPEED)
+			local pounceSpeed = math.min(gap / math.max(
+        config.MAUL_STRIKE - self.stateTime,
+        dt), config.MAUL_POUNCE_SPEED)
 			self.position += self.forward * (pounceSpeed * dt)
 		end
 	end
@@ -73,10 +124,14 @@ function Motion:steer(dt, targetPos, planar)
 	return moving
 end
 
-function Motion:fly(dt)
+--[[
+    Advances the airborne leap arc and resolves landing.
+    @param dt number
+]]
+function Motion:fly(dt: number): ()
 	local cfg = self.cfg
-	local gEff = self.leapGravity --gravity comes from the active launch plan
-  self.velocity -= Vector3.new(0, gEff * dt, 0)
+	local gEff = self.leapGravity
+	self.velocity -= Vector3.new(0, gEff * dt, 0)
 	if not self.hitDone and self:dealDamage(cfg.leapDamage, cfg.leapHitRadius) then
 		self.hitDone = true
 	end
@@ -100,7 +155,8 @@ function Motion:fly(dt)
 	end
 
 	if grounded then
-		self.up = groundNormal or Vector3.yAxis
+		-- fixed: snap up to exact yAxis on flat ground instead of leaving it slightly tilted
+		self.up = groundUp(groundNormal or Vector3.yAxis)
 		local flat = self.forward - self.up * self.forward:Dot(self.up)
 		self.forward = if flat.Magnitude > 0.01 then flat.Unit else self.up:Cross(Vector3.xAxis).Unit
 		self.velocity = Vector3.zero
@@ -119,12 +175,17 @@ function Motion:fly(dt)
 	if flatVelocity.Magnitude > 0.1 then
 		self.forward = self.forward:Lerp(flatVelocity.Unit, 1 - math.exp(-8 * dt))
 	end
-	self.up = self.up:Lerp(Vector3.yAxis, 1 - math.exp(-6 * dt)).Unit
+	-- FIX: snap up so the asymptotic Lerp does not freeze a hair off-axis
+	self.up = snapUp(self.up:Lerp(Vector3.yAxis, 1 - math.exp(-6 * dt)).Unit)
 	local flatForward = self.forward - self.up * self.forward:Dot(self.up)
 	self.forward = if flatForward.Magnitude > 0.01 then flatForward.Unit else self.up:Cross(Vector3.xAxis).Unit
 end
 
-function Motion:fall(dt)
+--[[
+    Simple fall mode used outside of a planned leap (e.g. knocked off a ledge).
+    @param dt number
+]]
+function Motion:fall(dt: number): ()
 	local cfg = self.cfg
 	local hit = Workspace:Raycast(self.position, self.up * -(cfg.rideHeight + 4), self.rayParams)
 	if hit then
@@ -136,7 +197,11 @@ function Motion:fall(dt)
 	end
 end
 
-function Motion:gravity(dt)
+--[[
+    Applies gravity when walking off a ledge; snaps to ground and crouches on impact.
+    @param dt number
+]]
+function Motion:gravity(dt: number): ()
 	local cfg = self.cfg
 	if self.state == "Leap" or self.state == "Dead" then
 		self.falling = false
@@ -147,29 +212,43 @@ function Motion:gravity(dt)
 
 	if not self.falling then
 		local reach = cfg.rideHeight + cfg.castExtra
-		local below = Workspace:Raycast(self.position, Vector3.new(0, -reach, 0), self.bodyParams)
-		if below then
-			self.airTime = 0
-			return
-		end
-		self.airTime += dt
-		if self.airTime < 0.1 then
-			return
-		end
-		self.falling = true
+		local below = Workspace:Raycast(
+      self.position,
+      Vector3.new(0, -reach, 0),
+      self.bodyParams
+    )
+
+		if below then self.airTime = 0 return end
+    self.airTime += dt
+    if self.airTime < 0.1 then return; end
+		
+    self.falling = true
 		self.fallSpeed = 0
 	end
 
-	self.fallSpeed = math.min(self.fallSpeed + Workspace.Gravity * dt, 200)
+	self.fallSpeed = math.min(
+    self.fallSpeed 
+    + Workspace.Gravity 
+    * dt, 200
+  )
+
 	local drop = self.fallSpeed * dt
-	local hit = Workspace:Raycast(self.position, Vector3.new(0, -(cfg.rideHeight + drop), 0), self.bodyParams)
+	local hit = Workspace:Raycast(
+    self.position,
+    Vector3.new(0, -(cfg.rideHeight + drop), 0),
+    self.bodyParams
+  )
 
 	if hit then
 		self.position = hit.Position + hit.Normal * cfg.rideHeight
-		self.up = if hit.Normal.Y >= 0.5 then hit.Normal else Vector3.yAxis
-		local flat = self.forward - self.up * self.forward:Dot(self.up)
-		self.forward = if flat.Magnitude > 0.01 then flat.Unit else self.up:Cross(Vector3.xAxis).Unit
-		self.sp.crouch.x = math.clamp(self.fallSpeed / 60, 0.15, 0.9)
+		self.up = groundUp(if hit.Normal.Y >= 0.5 then 
+      hit.Normal else Vector3.yAxis)
+		
+    local flat = self.forward - self.up * self.forward:Dot(self.up)
+    self.forward = if flat.Magnitude > 0.01 then 
+      flat.Unit else self.up:Cross(Vector3.xAxis).Unit
+		
+    self.sp.crouch.x = math.clamp(self.fallSpeed / 60, 0.15, 0.9)
 		self.sp.crouch.v = 0
 		self.sp.pitch.v = -2
 		self.falling = false
@@ -180,38 +259,57 @@ function Motion:gravity(dt)
 	end
 
 	self.position -= Vector3.new(0, drop, 0)
-	self.up = self.up:Lerp(Vector3.yAxis, 1 - math.exp(-6 * dt)).Unit
+	-- fixed: snap up so the asymptotic Lerp does not freeze a hair off-axis
+	self.up = snapUp(self.up:Lerp(Vector3.yAxis, 1 - math.exp(-6 * dt)).Unit)
 	local flatForward = self.forward - self.up * self.forward:Dot(self.up)
-	self.forward = if flatForward.Magnitude > 0.01 then flatForward.Unit else self.up:Cross(Vector3.xAxis).Unit
+	self.forward = if flatForward.Magnitude > 0.01 then 
+    flatForward.Unit else self.up:Cross(Vector3.xAxis).Unit
 end
 
-function Motion:separate(dt)
-	if self.state == "Dead" or self.state == "Leap" then
+--[[
+    Pushes away from nearby swarm members to prevent overlap.
+    Skipped on Idle so a resting body does not micro-slide.
+    @param dt number
+]]
+function Motion:separate(dt: number): ()
+	if self.state == "Dead" 
+    or self.state == "Leap" 
+    or self.state == "Idle" then
 		return
 	end
-	local radius = self.cfg.separation or 5.5
+	
+  local radius = self.cfg.separation or 5.5
 	local push = Vector3.zero
-	for other in self.swarm do
+	
+  for other in self.swarm do
 		if other == self or other.state == "Dead" or other.state == "Leap" then
 			continue
 		end
-		local offset = self.position - other.position
+		
+    local offset = self.position - other.position
 		local flat = offset - self.up * offset:Dot(self.up)
 		local dist = flat.Magnitude
-		if dist < radius then
-			local away = if dist > 0.05 then flat / dist else Vector3.new(math.cos(self.seed), 0, math.sin(self.seed))
+	
+    if dist < radius then
+			local away = if dist > 0.05 then 
+        flat / dist else Vector3.new(math.cos(self.seed), 0, math.sin(self.seed))
 			push += away * ((radius - dist) * 0.5)
 		end
 	end
-	if push.Magnitude > radius then
+	
+  if push.Magnitude > radius then
 		push = push.Unit * radius
 	end
-	if push.Magnitude > 0.001 then
+	
+  if push.Magnitude > 0.001 then
 		self.position += push * math.min(1, 10 * dt)
 	end
 end
 
-function Motion:collide()
+--[[
+    Wall, ceiling and ground resolution. Also applies ground-lift correction.
+]]
+function Motion:collide(): ()
 	if self.state == "Dead" then
 		return
 	end
@@ -221,61 +319,62 @@ function Motion:collide()
 
 	local push = Vector3.zero
 	local hits = 0
-  --skips wall pushing and launches on the top and land
-  local probes = if self.state ==  "Leap" and self.leapKind == "obstacle" then {} else C.WALL_PROBES
-	for _, probe in probes do
+	-- skips wall pushing and launches on the top and land
+	local probes = if self.state == "Leap" 
+    and self.leapKind == "obstacle" then {} else config.WALL_PROBES
+	
+  for _, probe in probes do
 		local dir, radius = probe[1], probe[2]
 		local world = base:VectorToWorldSpace(dir)
 		local hit = Workspace:Raycast(origin, world * radius, self.bodyParams)
-		if hit == nil or hit.Normal:Dot(self.up) > 0.6 then
+	
+    if hit == nil or hit.Normal:Dot(self.up) > 0.6 then
 			continue
 		end
-		local flat = hit.Normal - self.up * hit.Normal:Dot(self.up)
+		
+    local flat = hit.Normal - self.up * hit.Normal:Dot(self.up)
 		if flat.Magnitude < 0.05 then
 			continue
 		end
-		local away = flat.Unit
+		
+    local away = flat.Unit
 		push += away * ((radius - hit.Distance) * math.abs(world:Dot(away)))
 		hits += 1
 	end
 
-	if hits > 0 then
-		push /= hits
-		if push.Magnitude > 2 then
-			push = push.Unit * 2
-		end
-		if push.Magnitude > 0.001 then
-			self.position += push
-			if self.state == "Leap" then
-				local into = self.velocity:Dot(push.Unit)
-				if into < 0 then
-					self.velocity -= push.Unit * into
-				end
+	if hits > 0 then push /= hits
+		if push.Magnitude > 2 then push = push.Unit * 2 end
+		if push.Magnitude > 0.001 then self.position += push
+			if self.state == "Leap" then local into = self.velocity:Dot(push.Unit)
+				if into < 0 then self.velocity -= push.Unit * into end
 			end
 		end
 	end
 
 	local roof = Workspace:Raycast(self.position, self.up * 1.4, self.bodyParams)
-	if roof then
-		self.position -= self.up * (1.4 - roof.Distance)
+	if roof then self.position -= self.up * (1.4 - roof.Distance)
 		if self.state == "Leap" and self.velocity.Y > 0 then
 			self.velocity = Vector3.new(self.velocity.X, 0, self.velocity.Z)
 		end
 	end
-
+  --[[
+      World-vertical probe rays + deadzone on sub-2cm chatter.
+	    The old code cast along self.up, which tilts with the body and makes
+	    hit.Distance jitter frame-to-frame, producing a visible Idle bob.
+  ]]
+	local worldDown = Vector3.yAxis * -6
 	local lift = 0
-	for _, probe in C.GROUND_PROBES do
+	for _, probe in config.GROUND_PROBES do
 		local z, need = probe[1], probe[2]
 		local point = base:PointToWorldSpace(Vector3.new(0, 0, z))
-		local hit = Workspace:Raycast(point, self.up * -6, self.bodyParams)
+		local hit = Workspace:Raycast(point, worldDown, self.bodyParams)
 		if hit then
 			lift = math.max(lift, need - hit.Distance)
 		end
 	end
-	if lift > 0 then
-		self.position += self.up * lift
+	if lift > 0.02 then
+		self.position += Vector3.yAxis * math.min(lift, 0.5)
 	end
 end
 
 return Motion
-

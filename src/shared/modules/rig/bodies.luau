@@ -1,8 +1,5 @@
-local Shared = game:GetService("ReplicatedStorage").Shared
-local Modules = Shared.modules
-
-local C = require(Modules.helpers.config)
-local util = require(Modules.helpers.util)
+local config = require("../helpers/config")
+local util = require("../helpers/util")
 
 local Bodies = {}
 
@@ -38,27 +35,27 @@ function Bodies:buildBodies()
     Vector3.new(cfg.bodyWidth, 1.3, cfg.bodyLength), shell)
 
 	self.head = self:makePart(
-    "Head", Vector3.new(1.5, 1.1, C.HEAD_LENGTH), shell)
+    "Head", Vector3.new(1.5, 1.1, config.HEAD_LENGTH), shell)
 
 	self.abdomen = self:makePart(
-    "Abdomen", C.ABDOMEN_SIZE, belly)
+    "Abdomen", config.ABDOMEN_SIZE, belly)
 
 	self.model.PrimaryPart = self.thorax
 
 	for _, name in { "L", "R" } do
 		table.insert(self.jawBase, self:makePart(
       "Jaw" .. name .. "Base", 
-      Vector3.new(0.3, 0.3, C.JAW_BASE), bone))
+      Vector3.new(0.3, 0.3, config.JAW_BASE), bone))
 		
     table.insert(self.jawTip, self:makePart(
       "Jaw" .. name .. "Tip",
-      Vector3.new(0.22, 0.22, C.JAW_TIP), bone))
+      Vector3.new(0.22, 0.22, config.JAW_TIP), bone))
 
 		table.insert(
 			self.wings,
 			self:makePart(
 				"Wing" .. name,
-				Vector3.new(0.95, 0.08, C.WING_LENGTH),
+				Vector3.new(0.95, 0.08, config.WING_LENGTH),
 				membrane,
 				Enum.PartType.Block,
 				0.4
@@ -121,13 +118,13 @@ function Bodies:render()
 		* CFrame.Angles(0, sp.headYaw.x, 0)
 		* CFrame.Angles(sp.headPitch.x, 0, sp.headRoll.x)
 		* CFrame.new(0, 0, -sp.lunge.x)
-	self.head.CFrame = neck * CFrame.new(0, 0, -C.HEAD_LENGTH * 0.5)
+	self.head.CFrame = neck * CFrame.new(0, 0, -config.HEAD_LENGTH * 0.5)
 
 	local tail = pose
 		* CFrame.new(0, -0.3, cfg.bodyLength * 0.5 - 0.25)
 		* CFrame.Angles(0, sp.abYaw.x, 0)
 		* CFrame.Angles(sp.abPitch.x, 0, 0)
-	self.abdomen.CFrame = tail * CFrame.new(0, 0, C.ABDOMEN_SIZE.Z * 0.5)
+	self.abdomen.CFrame = tail * CFrame.new(0, 0, config.ABDOMEN_SIZE.Z * 0.5)
 
 	local airborne = self.state == "Windup" or self.state == "Leap" or self:pouncing()
 
@@ -135,16 +132,16 @@ function Bodies:render()
 		local s = if i == 0 then -1 else 1
 
 		local hinge = neck
-			* CFrame.new(s * 0.45, -0.15, -C.HEAD_LENGTH)
+			* CFrame.new(s * 0.45, -0.15, -config.HEAD_LENGTH)
 			* CFrame.Angles(0, -s * (sp.jaw.x * 0.9 - 0.1), 0)
 		
     self.jawBase[i + 1].CFrame = 
-      hinge * CFrame.new(0, 0, -C.JAW_BASE * 0.5)
+      hinge * CFrame.new(0, 0, -config.JAW_BASE * 0.5)
 		
     local hook = 
-      hinge * CFrame.new(0, 0, -C.JAW_BASE) * CFrame.Angles(0, s * 0.45, 0)	
+      hinge * CFrame.new(0, 0, -config.JAW_BASE) * CFrame.Angles(0, s * 0.45, 0)	
     self.jawTip[i + 1].CFrame = 
-      hook * CFrame.new(0, 0, -C.JAW_TIP * 0.5)
+      hook * CFrame.new(0, 0, -config.JAW_TIP * 0.5)
 
 		local idleJitter = math.sin(self.clock * 45 + i) * 0.015
 		local flutterScale = if airborne then 0.3 else 1
@@ -165,7 +162,7 @@ function Bodies:render()
 			* CFrame.new(s * 0.5, 0.7, -0.4)
 			* CFrame.Angles(0, s * (0.15 + sp.wing.x), 0)
 			* CFrame.Angles(0.08 - sp.wing.x * 0.7 + flutter, 0, 0)
-		self.wings[i + 1].CFrame = wing * CFrame.new(0, 0, C.WING_LENGTH * 0.5)
+		self.wings[i + 1].CFrame = wing * CFrame.new(0, 0, config.WING_LENGTH * 0.5)
 	end
 
 	for _, leg in self.legs do

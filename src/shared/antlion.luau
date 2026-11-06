@@ -1,14 +1,10 @@
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
-local Shared = game:GetService("ReplicatedStorage").Shared
-local Modules = Shared.modules
-
-local Config = require(Modules.helpers.config)
-local util = require(Modules.helpers.util)
+local config = require("./modules/helpers/config")
+local util = require("./modules/helpers/config")
 
 local Antlion = {}
-Antlion.__index = Antlion
 
 local swarm = {}
 
@@ -154,8 +150,10 @@ function Antlion.new(spawn, config, parent)
 	if down then
 		self.position = down.Position + down.Normal * cfg.rideHeight
 		self.up = down.Normal
-		local flat = self.forward - self.up * self.forward:Dot(self.up)
-		self.forward = if flat.Magnitude > 0.01 then flat.Unit else self.up:Cross(Vector3.xAxis).Unit
+		
+    local flat = self.forward - self.up * self.forward:Dot(self.up)
+		self.forward = if flat.Magnitude > 0.01 then 
+      flat.Unit else self.up:Cross(Vector3.xAxis).Unit
 	end
 
 	self.sp.abPitch.x = 0.25

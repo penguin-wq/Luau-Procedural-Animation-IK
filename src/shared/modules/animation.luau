@@ -1,14 +1,11 @@
-local Shared = game:GetService("ReplicatedStorage").Shared
-local Modules = Shared.modules
+local config = require("./helpers/config")
+local util = require("./helpers/util")
 
-local C = require(Modules.helpers.config)
-local util = require(Modules.helpers.util)
+local Animation = {}
 
 local sin = math.sin
 local pi = math.pi
 local spring = util.spring
-
-local Animation = {}
 
 function Animation:animate(dt, targetPos)
 	local cfg = self.cfg
@@ -30,7 +27,7 @@ function Animation:animate(dt, targetPos)
 	end
 	local variant = self.attackVariant
 	local maul = state == "Bite" and variant == "maul"
-	local coil = maul and self.stateTime < C.MAUL_POUNCE_START
+	local coil = maul and self.stateTime < config.MAUL_POUNCE_START
 	local air = maul and not strike and not coil
 
 	self.breathPhase += dt * (2 + sf * 5)
@@ -295,8 +292,8 @@ function Animation:animate(dt, targetPos)
 
 	local hopGoal = 0
 	if air then
-		local t = (self.stateTime - C.MAUL_POUNCE_START) / (C.MAUL_STRIKE - C.MAUL_POUNCE_START)
-		hopGoal = sin(t * pi) * C.MAUL_HOP_HEIGHT
+		local t = (self.stateTime - config.MAUL_POUNCE_START) / (config.MAUL_STRIKE - config.MAUL_POUNCE_START)
+		hopGoal = sin(t * pi) * config.MAUL_HOP_HEIGHT
 	end
 	self.hop += (hopGoal - self.hop) * (1 - math.exp(-30 * dt))
 

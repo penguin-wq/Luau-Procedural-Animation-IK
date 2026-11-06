@@ -1,9 +1,5 @@
 local Workspace = game:GetService("Workspace")
-
-local Shared = game:GetService("ReplicatedStorage").Shared
-local Modules = Shared.modules
-
-local C = require(Modules.helpers.config)
+local config = require("../helpers/config")
 
 local Joints = {}
 
@@ -148,7 +144,7 @@ function Joints:updateJoints(dt, moving)
 			if variant == "rend" then
 				local swipe = if biteStrike then math.sin(bitePost * math.pi) * 2.5 * leg.side else 0
 				reachedWorld = base:PointToWorldSpace(leg.hipLocal + Vector3.new(leg.side * 0.5 + swipe, 1.6, -3.5))
-			elseif self.stateTime < C.MAUL_POUNCE_START then
+			elseif self.stateTime < config.MAUL_POUNCE_START then
 				reachedWorld = base:PointToWorldSpace(leg.hipLocal + Vector3.new(leg.side * 0.9, 1.6, -1.8))
 			elseif not biteStrike then
 				reachedWorld = base:PointToWorldSpace(leg.hipLocal + Vector3.new(leg.side * 1.5, 1.4, -4.6))
